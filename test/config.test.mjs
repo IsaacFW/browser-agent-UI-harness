@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-import { ConfigError, isApiPath, loadTarget, urlFor } from '../src/config.mjs';
+import { ConfigError, credentialsFor, isApiPath, loadTarget, urlFor } from '../src/config.mjs';
 
 const dir = mkdtempSync(join(tmpdir(), 'uiharness-'));
 
@@ -47,9 +47,10 @@ test('resolves a password from the named environment variable', () => {
     ...BASE,
     identities: { buyer: { username: 'b', passwordEnv: 'TEST_PW' } },
   });
-  const target = loadTarget(path, { TEST_PW: 's3cret' });
-  assert.equal(target.identities.buyer.password, 's3cret');
-  assert.equal(target.identities.buyer.username, 'b');
+  const target = loadTarget(path);
+  const creds = credentialsFor(target, 'buyer', { TEST_PW: 's3cret' });
+  assert.equal(creds.password, 's3cret');
+  assert.equal(creds.username, 'b');
 });
 
 test('fails loudly when the named variable is unset', () => {
@@ -57,7 +58,29 @@ test('fails loudly when the named variable is unset', () => {
     ...BASE,
     identities: { buyer: { username: 'b', passwordEnv: 'ABSENT_PW' } },
   });
-  assert.throws(() => loadTarget(path, {}), /ABSENT_PW.*unset|unset/s);
+  const target = loadTarget(path);
+  assert.throws(() => credentialsFor(target, 'buyer', {}), /ABSENT_PW[\s\S]*unset|unset/);
+});
+
+test('working as one identity does not require every identity\'s credentials', () => {
+  // Regression: eager resolution meant driving the site as one persona demanded the
+  // passwords of all the others, which is both annoying and a reason to over-share secrets.
+  const path = writeConfig('lazy', {
+    ...BASE,
+    identities: {
+      buyer: { username: 'b', passwordEnv: 'ONLY_THIS_ONE' },
+      admin: { username: 'a', passwordEnv: 'NOT_EXPORTED' },
+    },
+  });
+  const target = loadTarget(path);
+  const creds = credentialsFor(target, 'buyer', { ONLY_THIS_ONE: 'pw' });
+  assert.equal(creds.password, 'pw');
+  assert.throws(() => credentialsFor(target, 'admin', { ONLY_THIS_ONE: 'pw' }), /NOT_EXPORTED/);
+});
+
+test('credentialsFor rejects an unknown identity by name', () => {
+  const path = writeConfig('unknown-id', { ...BASE, identities: { buyer: { username: 'b' } } });
+  assert.throws(() => credentialsFor(loadTarget(path), 'nobody', {}), /unknown identity "nobody"/);
 });
 
 test('rejects an unknown identity key rather than ignoring it', () => {

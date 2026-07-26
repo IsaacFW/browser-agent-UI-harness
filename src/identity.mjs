@@ -7,7 +7,7 @@
 // dedicated page inside it. Switching identity is then free and cannot leak state.
 
 import { click, fill, goto } from './actions.mjs';
-import { urlFor } from './config.mjs';
+import { credentialsFor, urlFor } from './config.mjs';
 import { findNode, snapshot } from './snapshot.mjs';
 
 export class IdentityError extends Error {}
@@ -47,7 +47,7 @@ export async function ensureIdentity(browser, session, name, target) {
  * credentials otherwise looks exactly like success to an agent.
  */
 export async function login(page, target, identityName, runDir) {
-  const identity = target.identities[identityName];
+  const identity = credentialsFor(target, identityName);
   if (!target.login) {
     throw new IdentityError('target config has no "login" block, so `login` cannot run. Add one, or navigate manually.');
   }

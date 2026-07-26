@@ -43,6 +43,9 @@ export function loadTarget(targetPath, env = process.env) {
   }
   assertNoLiteralSecrets(identities, path);
 
+  // Shape is validated for every identity, but credentials are NOT resolved here. Working
+  // as one persona must not require holding the passwords of every other one — resolution
+  // happens in credentialsFor(), when an identity is actually used.
   const resolved = {};
   for (const [name, spec] of Object.entries(identities)) {
     for (const key of Object.keys(spec)) {
@@ -50,11 +53,7 @@ export function loadTarget(targetPath, env = process.env) {
         throw new ConfigError(`identity "${name}" has unknown key "${key}" (allowed: ${[...IDENTITY_KEYS].join(', ')})`);
       }
     }
-    resolved[name] = {
-      ...spec,
-      username: spec.usernameEnv ? requireEnv(env, spec.usernameEnv, name, 'usernameEnv') : spec.username,
-      password: spec.passwordEnv ? requireEnv(env, spec.passwordEnv, name, 'passwordEnv') : undefined,
-    };
+    resolved[name] = { ...spec };
   }
 
   return Object.freeze({
@@ -89,6 +88,23 @@ function assertNoLiteralSecrets(identities, path) {
         `  then export the value in your shell. Configs are meant to be committable.`
     );
   }
+}
+
+/**
+ * Resolve one identity's credentials from the environment, at the point of use. Returns a
+ * plain object that exists only in memory and is never written to the run log.
+ */
+export function credentialsFor(target, name, env = process.env) {
+  const spec = target.identities[name];
+  if (!spec) {
+    const known = Object.keys(target.identities);
+    throw new ConfigError(`unknown identity "${name}". Declared: ${known.length ? known.join(', ') : '(none)'}`);
+  }
+  return {
+    ...spec,
+    username: spec.usernameEnv ? requireEnv(env, spec.usernameEnv, name, 'usernameEnv') : spec.username,
+    password: spec.passwordEnv ? requireEnv(env, spec.passwordEnv, name, 'passwordEnv') : undefined,
+  };
 }
 
 function requireEnv(env, varName, identity, field) {
