@@ -1,8 +1,11 @@
 node_modules/
 
-# Session state, browser profile and run logs. Run logs contain screenshots of whatever
-# you pointed the harness at, so they never belong in the repo.
+# Volatile session state and the browser profile. Safe to delete when nothing is running.
 .uiharness/
+
+# Run evidence — screenshots and logs of whatever you pointed the harness at. Kept apart
+# from .uiharness/ precisely so resetting a session cannot destroy it.
+uiharness-runs/
 
 # Local target configs. Commit the ones you want to share; keep private targets out.
 target.local.json

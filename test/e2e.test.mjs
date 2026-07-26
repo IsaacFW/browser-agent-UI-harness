@@ -130,6 +130,28 @@ test('drives a real app through the UI', { skip: browserMissing && 'no Chromium-
     assert.match(asBuyer, /Sign out/);
   });
 
+  await t.test('a still-loading page is flagged, and wait reaches the real content', () => {
+    // Regression: a persona reported the Tasks page of a real app as empty when it was in
+    // fact still retrying a failed request behind a spinner. The snapshot was accurate; what
+    // was missing was any signal that it was not yet final.
+    const during = cli('goto', '/slow');
+    assert.match(during, /Loading…/, 'the spinner should be visible while the page loads');
+    assert.match(during, /still loading/, 'a snapshot taken mid-load must say so');
+
+    const after = cli('wait', '--gone', 'Loading…');
+    assert.match(after, /Bench 4 needs water/, 'wait should return once real content arrives');
+    // The spinner must be gone from the PAGE; wait's own status line legitimately names it.
+    assert.doesNotMatch(after, /status\s+"Loading…"/, 'the spinner should no longer be on the page');
+    assert.doesNotMatch(after, /still loading/, 'and the busy hint should have cleared');
+  });
+
+  await t.test('table rows are readable as rows, not loose cells', () => {
+    cli('goto', '/orders');
+    const out = cli('snapshot');
+    assert.match(out, /row\(hdr\)\s+ID │ Item │ Qty │ Status/, 'header row should be grouped');
+    assert.match(out, /row\s+\d+ │ Flywheel │ 25 │ open/, 'data row should be grouped');
+  });
+
   await t.test('an honest run audits clean', () => {
     const out = cli('audit');
     assert.match(out, /UI-only: no unattributed API traffic/);
