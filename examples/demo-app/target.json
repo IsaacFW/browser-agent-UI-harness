@@ -1,0 +1,30 @@
+{
+  "name": "demo-app",
+  "baseUrl": "http://localhost:4173",
+  "apiPathPrefixes": ["/api"],
+  "viewport": { "width": 1440, "height": 900 },
+  "login": {
+    "path": "/login",
+    "fields": [
+      { "field": "Username", "value": "{{username}}" },
+      { "field": "Password", "value": "{{password}}" }
+    ],
+    "submit": "Sign in",
+    "successUrlNot": "/login"
+  },
+  "signout": {
+    "control": "Sign out"
+  },
+  "identities": {
+    "buyer": {
+      "username": "buyer",
+      "passwordEnv": "DEMO_BUYER_PASSWORD",
+      "description": "Places orders. Cares about how fast a purchase can be completed."
+    },
+    "operator": {
+      "username": "operator",
+      "passwordEnv": "DEMO_OPERATOR_PASSWORD",
+      "description": "Fulfils orders. Cares about queue clarity and bulk actions."
+    }
+  }
+}

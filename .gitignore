@@ -1,0 +1,9 @@
+node_modules/
+
+# Session state, browser profile and run logs. Run logs contain screenshots of whatever
+# you pointed the harness at, so they never belong in the repo.
+.uiharness/
+
+# Local target configs. Commit the ones you want to share; keep private targets out.
+target.local.json
+*.local.json

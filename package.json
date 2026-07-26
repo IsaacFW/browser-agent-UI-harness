@@ -1,0 +1,38 @@
+{
+  "name": "browser-agent-ui-harness",
+  "version": "0.1.0",
+  "description": "A CLI that lets AI agents drive a website the way a user does — real clicks and typing in a real browser, never shortcut API calls.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "uiharness": "./bin/uiharness.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "docs/",
+    "examples/"
+  ],
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\"",
+    "test:unit": "node --test \"test/config.test.mjs\" \"test/audit.test.mjs\"",
+    "demo": "node examples/demo-app/server.mjs"
+  },
+  "dependencies": {
+    "puppeteer-core": "^25.3.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IsaacFW/browser-agent-UI-harness.git"
+  },
+  "keywords": [
+    "browser-automation",
+    "agents",
+    "ui-testing",
+    "usability",
+    "cdp"
+  ]
+}
