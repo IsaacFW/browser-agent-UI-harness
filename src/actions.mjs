@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Isaac Williams
 // deps: src/evidence.mjs, src/snapshot.mjs
 //
 // The verbs. Every one of these goes through the browser's real input path — a click is a

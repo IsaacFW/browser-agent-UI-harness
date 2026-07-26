@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Isaac Williams
 // deps: node:http
 //
 // A deliberately small web app so the harness can be exercised without pointing it at

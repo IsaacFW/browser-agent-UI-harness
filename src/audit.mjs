@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Isaac Williams
 // deps: src/config.mjs, src/evidence.mjs
 //
 // The check that gives the harness its name. An agent testing a UI is supposed to exercise

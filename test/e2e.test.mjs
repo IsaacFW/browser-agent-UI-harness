@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Isaac Williams
 // deps: node:test, node:assert, node:child_process, bin/uiharness.mjs, examples/demo-app/server.mjs
 //
 // The proof that the thing works: a real browser, a real login form, a real form submission,

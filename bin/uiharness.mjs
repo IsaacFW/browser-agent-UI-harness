@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Isaac Williams
 // deps: src/actions.mjs, src/audit.mjs, src/browser.mjs, src/config.mjs, src/evidence.mjs,
 //       src/identity.mjs, src/session.mjs, src/snapshot.mjs
 //

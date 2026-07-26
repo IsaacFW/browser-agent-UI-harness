@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Isaac Williams
 // deps: src/actions.mjs, src/config.mjs, src/snapshot.mjs
 //
 // Identities are the harness's answer to a trap that catches most multi-user browser

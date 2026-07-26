@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Isaac Williams
 // deps: (browser-injected; no imports)
 //
 // Turning a live page into something an agent can reason about and act on. Two hard

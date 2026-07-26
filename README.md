@@ -166,4 +166,11 @@ agent's context directly.
 
 ## License
 
-MIT
+Copyright (C) 2026 Isaac Williams.
+
+This program is free software: you can redistribute it and/or modify it under the terms of
+the GNU Affero General Public License as published by the Free Software Foundation, either
+version 3 of the License, or (at your option) any later version. See [LICENSE](./LICENSE).
+
+Because this is the AGPL, running a modified version to provide a service over a network
+counts as distribution: anyone who does so must offer their users the corresponding source.

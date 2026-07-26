@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Isaac Williams
 // deps: node:fs, node:path
 //
 // The run log. Everything an agent later claims about a site should be citable, so each
