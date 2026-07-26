@@ -20,9 +20,28 @@ uiharness snapshot            # see what is on the page
 uiharness click 12            # act on a ref, or on a name: uiharness click "New order"
 ```
 
-Every acting command prints a fresh snapshot, so you rarely need to call `snapshot` twice in a
-row. Refs are only valid for the snapshot that produced them — if the page changed underneath
-you, you get an error telling you to re-snapshot rather than a silent misclick.
+Every acting command prints a fresh snapshot. Refs are only valid for the snapshot that
+produced them — if the page changed underneath you, you get an error telling you to
+re-snapshot rather than a silent misclick.
+
+## Pages that have not finished loading
+
+**A snapshot is a moment, not a verdict.** If the output ends with `⏳ still loading`, the page
+was mid-fetch when it was taken — what you are looking at is real but not final. Never conclude
+"this page is empty" or "there is no data" from a snapshot carrying that marker.
+
+```bash
+uiharness wait --gone "Loading…"        # until the spinner clears
+uiharness wait --text "Orders"          # until expected content arrives
+uiharness wait --idle --timeout 20000   # until the network goes quiet
+```
+
+Use `wait` rather than `sleep`: it returns the instant the condition is met and tells you how
+long it took. This matters more than it sounds — an app retrying a failed request with backoff
+can sit on a spinner for ten seconds and then render an *empty* state that looks identical to
+having no data. Distinguishing "still loading", "genuinely empty", and "failed and hid it" is
+often the whole finding, so check `uiharness console` and `uiharness network --api` before
+calling a page empty.
 
 Element names come from the accessible name, which is what a screen reader would announce.
 `uiharness click "Place order"` is more durable than a ref and much more readable in your notes.

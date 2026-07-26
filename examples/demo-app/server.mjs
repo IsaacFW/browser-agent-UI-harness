@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Isaac Williams
 // deps: node:http
 //
 // A deliberately small web app so the harness can be exercised without pointing it at
@@ -126,6 +128,36 @@ const server = createServer(async (req, res) => {
              document.getElementById('open').textContent=d.open;
              document.getElementById('total').textContent=d.total;
            });
+         </script>`,
+        user
+      )
+    );
+  }
+
+  // A page that is slow the way real ones are: a spinner held up by a data layer retrying a
+  // failing request. A snapshot taken during this window is accurate but not final, which is
+  // how "this page is empty" gets reported instead of "this page had not loaded yet".
+  if (url.pathname === '/api/slow-data') {
+    await new Promise((r) => setTimeout(r, 900));
+    return json(res, 500, { error: 'flaky' });
+  }
+  if (url.pathname === '/slow') {
+    return send(
+      res,
+      200,
+      page(
+        'Slow',
+        `<h1>Slow page</h1><div id=out role=status>Loading…</div>
+         <script>
+           let tries = 0;
+           (function attempt() {
+             fetch('/api/slow-data')
+               .then(r => { if (!r.ok) throw new Error('retry'); })
+               .catch(() => {
+                 if (++tries < 3) return setTimeout(attempt, 400);
+                 document.getElementById('out').textContent = 'Bench 4 needs water';
+               });
+           })();
          </script>`,
         user
       )

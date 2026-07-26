@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Isaac Williams
 // deps: puppeteer-core, src/evidence.mjs
 //
 // A detached daemon that stays attached to the browser for the whole session.

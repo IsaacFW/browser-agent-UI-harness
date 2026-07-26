@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Isaac Williams
 // deps: src/actions.mjs, src/audit.mjs, src/browser.mjs, src/config.mjs, src/evidence.mjs,
 //       src/identity.mjs, src/session.mjs, src/snapshot.mjs
 //
@@ -17,7 +19,7 @@ import { connect, findExecutable, freePort, launch } from '../src/browser.mjs';
 import { isApiPath, loadTarget, urlFor } from '../src/config.mjs';
 import { FILES, createRunDir, markGesture, readJsonl, screenshotPath } from '../src/evidence.mjs';
 import { ensureIdentity, login, signout } from '../src/identity.mjs';
-import { clearSession, harnessDir, processAlive, readSession, trySession, writeSession } from '../src/session.mjs';
+import { clearSession, harnessDir, processAlive, readSession, runsDir, trySession, writeSession } from '../src/session.mjs';
 import { findNode, formatSnapshot, snapshot } from '../src/snapshot.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -39,6 +41,9 @@ const USAGE = `uiharness — drive a website as a user, so an agent's findings a
   Look
     snapshot [--interactive] [--max-nodes <n>]
     text [--max <chars>]        the page as a person reads it
+    wait --gone "Loading…"      block until the page is actually ready
+         --text "<expected>"    …or until expected content appears
+         --ms <n> | --idle      …or a fixed pause / network quiet
     screenshot [--full] [--label <name>]
     console                     console errors and warnings since the run began
     network [--api]             requests the page made
@@ -98,6 +103,8 @@ async function main() {
       return cmdSnapshot(flags);
     case 'text':
       return cmdText(flags);
+    case 'wait':
+      return cmdWait(flags);
     case 'screenshot':
       return cmdScreenshot(flags);
     case 'console':
@@ -130,7 +137,16 @@ async function main() {
 async function cmdStart(flags) {
   const existing = trySession();
   if (existing && processAlive(existing.browserPid)) {
-    throw new Error(`a session is already running (browser pid ${existing.browserPid}). Run \`uiharness stop\` first.`);
+    throw new Error(
+      `a session is already running (browser pid ${existing.browserPid}).\n` +
+        '  Run `uiharness stop` to end it. Do NOT delete .uiharness by hand.'
+    );
+  }
+  if (existing) {
+    // A leftover file from a browser that already died. Clear it rather than making the
+    // user reach for `rm -rf`, which is how run evidence gets destroyed.
+    if (existing.recorderPid) safeKill(existing.recorderPid);
+    clearSession();
   }
   if (!flags.target) throw new Error('start requires --target <config.json>');
 
@@ -151,7 +167,7 @@ async function cmdStart(flags) {
     viewport: target.viewport,
   });
 
-  const runDir = createRunDir(root, flags.label ?? target.name);
+  const runDir = createRunDir(runsDir(), flags.label ?? target.name);
 
   // Detached so the recorder outlives this process and keeps watching between commands.
   const recorder = spawn(process.execPath, [RECORDER, browserURL, runDir], {
@@ -287,7 +303,32 @@ async function cmdSnapshot(flags) {
   await withPage(flags, async ({ page, session, identity }) => {
     const snap = await storeSnapshot(page, session, identity, flags['max-nodes'] ? Number(flags['max-nodes']) : undefined);
     writeSession(session);
-    out(flags, { ok: true, ...snap }, () => console.log(formatSnapshot(snap, { showStructural: !flags.interactive })));
+    out(flags, { ok: true, ...snap }, () => {
+      console.log(formatSnapshot(snap, { showStructural: !flags.interactive }));
+      if (snap.busy) console.log(BUSY_HINT);
+    });
+  });
+}
+
+async function cmdWait(flags) {
+  await withPage(flags, async ({ page, session, identity, runDir }) => {
+    const result = await actions.waitFor(
+      page,
+      {
+        text: flags.text,
+        gone: flags.gone,
+        ms: flags.ms,
+        idle: flags.idle,
+        timeout: flags.timeout ? Number(flags.timeout) : undefined,
+      },
+      runDir
+    );
+    const fresh = await storeSnapshot(page, session, identity);
+    writeSession(session);
+    out(flags, { ok: true, ...result, snapshot: fresh }, () => {
+      console.log(`waited ${result.waited}ms — ${result.reason}`);
+      console.log(formatSnapshot(fresh, { showStructural: !flags.interactive }));
+    });
   });
 }
 
@@ -361,6 +402,7 @@ async function cmdGoto(path, flags) {
     out(flags, { ok: true, ...result, title: snap.title }, () => {
       console.log(`→ ${result.url}`);
       console.log(formatSnapshot(snap, { showStructural: !flags.interactive }));
+      if (result.settled === false || snap.busy) console.log(BUSY_HINT);
     });
   });
 }
@@ -464,8 +506,19 @@ function reportAction(flags, kind, node, result, fresh) {
     const where = result.navigated ? ` → ${result.url}` : '';
     console.log(`${kind} [${node.ref}] ${JSON.stringify(node.name)}${where}`);
     console.log(formatSnapshot(fresh, { showStructural: !flags.interactive }));
+    if (result.settled === false || fresh.busy) console.log(BUSY_HINT);
   });
 }
+
+/**
+ * Shown when the page was still fetching at the settle deadline. A snapshot taken then is
+ * accurate but not final — the difference between "this page is empty" and "this page had
+ * not finished loading", which is exactly the sort of thing a UI test gets wrong.
+ */
+const BUSY_HINT =
+  '\n  ⏳ still loading — the page was fetching when this snapshot was taken.\n' +
+  '     Wait for the real content before drawing conclusions, e.g.\n' +
+  '       uiharness wait --gone "Loading…"      (or --text "<what you expect>")';
 
 function out(flags, payload, human) {
   if (flags.json) console.log(JSON.stringify(payload, null, 2));

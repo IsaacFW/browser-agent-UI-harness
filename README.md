@@ -127,6 +127,8 @@ uiharness snapshot
 | `login --as <id>` / `signout` | authenticate through the real form |
 | `use <id>` | set the default identity for later commands |
 | `snapshot` | list the page's interactive elements with refs |
+| `text` | the page as prose — what a person reads |
+| `wait --gone/--text/--ms/--idle` | block until the page is actually ready |
 | `click` `fill` `select` `hover` `press` | act on a ref number or an element name |
 | `goto` `back` `forward` `reload` | navigate |
 | `screenshot [--full]` | capture to the run directory |
@@ -135,6 +137,36 @@ uiharness snapshot
 
 Add `--json` to any command for machine-readable output, and `--as <identity>` to act as
 someone other than the current one.
+
+## Loading states
+
+A snapshot is a moment, not a verdict. When the page is still resolving, the output ends with
+`⏳ still loading` and you should `wait` before drawing conclusions:
+
+```console
+$ uiharness click "Tasks"
+click [9] "Tasks" → /tasks
+  [29] td  "Loading…"
+
+  ⏳ still loading — the page was fetching when this snapshot was taken.
+
+$ uiharness wait --gone "Loading…"
+waited 6800ms — "Loading…" disappeared
+```
+
+This is not a nicety. A data layer retrying a failed request with backoff can hold a spinner
+for several seconds and then render an *empty* state indistinguishable from having no data —
+so "the page is empty", "the page is still loading" and "the request failed and the UI hid it"
+all look alike. Network-idle detection alone cannot separate them, because retries go quiet
+between attempts; the harness watches for the loading affordance itself.
+
+## Where run evidence goes
+
+Screenshots and logs are written to `uiharness-runs/<timestamp>-<label>/`, deliberately
+**outside** `.uiharness/`. Session state is scratch and gets reset; evidence is the durable
+product of a run. Keeping them apart means clearing a stuck session cannot destroy the
+screenshots a report cites. You should never need to delete `.uiharness` by hand — `start`
+clears a dead session itself.
 
 ## How refs work
 
@@ -166,4 +198,11 @@ agent's context directly.
 
 ## License
 
-MIT
+Copyright (C) 2026 Isaac Williams.
+
+This program is free software: you can redistribute it and/or modify it under the terms of
+the GNU Affero General Public License as published by the Free Software Foundation, either
+version 3 of the License, or (at your option) any later version. See [LICENSE](./LICENSE).
+
+Because this is the AGPL, running a modified version to provide a service over a network
+counts as distribution: anyone who does so must offer their users the corresponding source.

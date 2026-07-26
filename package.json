@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "A CLI that lets AI agents drive a website the way a user does — real clicks and typing in a real browser, never shortcut API calls.",
   "type": "module",
-  "license": "MIT",
+  "license": "AGPL-3.0-or-later",
   "bin": {
     "uiharness": "./bin/uiharness.mjs"
   },

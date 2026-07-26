@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Isaac Williams
 // deps: node:fs, node:path, src/browser.mjs
 //
 // Session state that spans CLI invocations. Each `uiharness` command is a short-lived
@@ -16,6 +18,18 @@ export function harnessDir(env = process.env) {
 
 export function sessionPath(env = process.env) {
   return join(harnessDir(env), 'session.json');
+}
+
+/**
+ * Where run evidence goes — deliberately NOT inside harnessDir().
+ *
+ * Screenshots and logs are the durable product of a run; session state is scratch. Keeping
+ * them together taught its own lesson: resetting a stuck session with `rm -rf .uiharness`
+ * silently destroys the evidence a report depends on. Separate directories mean the
+ * dangerous command can no longer reach the valuable data.
+ */
+export function runsDir(env = process.env) {
+  return env.UIHARNESS_RUNS ? resolve(env.UIHARNESS_RUNS) : resolve(process.cwd(), 'uiharness-runs');
 }
 
 export function readSession(env = process.env) {

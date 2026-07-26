@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Isaac Williams
 // deps: node:test, node:assert, src/config.mjs
 //
 // The credential guard is the one piece that, if it regresses, turns a public repo into a

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Isaac Williams
 // deps: puppeteer-core, node:child_process, node:fs, node:net
 //
 // Finding and launching a Chromium-family browser. Deliberately does NOT download one:

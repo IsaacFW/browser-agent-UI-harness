@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Isaac Williams
 // deps: src/evidence.mjs, src/snapshot.mjs
 //
 // The verbs. Every one of these goes through the browser's real input path — a click is a
@@ -30,16 +32,68 @@ async function locate(page, node) {
 /**
  * Wait for the page to stop changing. Resolves on navigation when one happens, otherwise
  * after a quiet period — an SPA route change produces no navigation event at all.
+ *
+ * When the page is STILL busy at the deadline this reports `settled: false` rather than
+ * pretending otherwise. That distinction matters: a data layer retrying a failed request
+ * with backoff can sit on a spinner for many seconds, and a snapshot taken meanwhile is
+ * accurate but not final. Callers surface this so an agent knows to wait rather than
+ * concluding the spinner is the page.
  */
 async function settle(page) {
   const before = page.url();
   await new Promise((res) => setTimeout(res, 120));
+  let settled = true;
   try {
     await page.waitForNetworkIdle({ idleTime: 350, timeout: SETTLE_MS });
   } catch {
-    // Busy page (polling, animations). Not an error — just stop waiting.
+    settled = false;
   }
-  return { navigated: page.url() !== before, url: page.url() };
+  return { navigated: page.url() !== before, url: page.url(), settled };
+}
+
+/**
+ * Block until the page reaches a described condition. The alternative an agent reaches for
+ * is `sleep`, which is either too short (flaky) or too long (slow) and never explains itself.
+ */
+export async function waitFor(page, { text, gone, ms, idle, timeout = 15000 }, runDir) {
+  markGesture(runDir, 'wait', { text, gone, ms, idle });
+  const started = Date.now();
+
+  if (ms) {
+    await new Promise((r) => setTimeout(r, Number(ms)));
+    return { waited: Date.now() - started, reason: `${ms}ms elapsed` };
+  }
+
+  if (text || gone) {
+    const needle = String(text ?? gone);
+    const wantPresent = Boolean(text);
+    try {
+      await page.waitForFunction(
+        (n, present) => {
+          const body = document.body?.innerText ?? '';
+          return body.includes(n) === present;
+        },
+        { timeout, polling: 250 },
+        needle,
+        wantPresent
+      );
+    } catch {
+      throw new ActionError(
+        `timed out after ${timeout}ms waiting for ${JSON.stringify(needle)} to ${wantPresent ? 'appear' : 'disappear'}.\n` +
+          '  The page may be stuck, or the text may differ from what is on screen — check `uiharness text`.'
+      );
+    }
+    return { waited: Date.now() - started, reason: `${JSON.stringify(needle)} ${wantPresent ? 'appeared' : 'disappeared'}` };
+  }
+
+  // Default: wait for the network to go quiet, which is what `idle` asks for explicitly.
+  void idle;
+  try {
+    await page.waitForNetworkIdle({ idleTime: 500, timeout });
+  } catch {
+    throw new ActionError(`network was still busy after ${timeout}ms.`);
+  }
+  return { waited: Date.now() - started, reason: 'network idle' };
 }
 
 export async function click(page, node, runDir, { dblClick = false } = {}) {
@@ -129,8 +183,29 @@ export async function goto(page, url, runDir) {
   return result;
 }
 
+/**
+ * Capture the page. A full-page capture is taken from the top of the document and the
+ * previous scroll position restored afterwards: stitching a tall page while scrolled leaves
+ * any sticky header painted across the middle of the image, which reads as a rendering bug
+ * in the application under test rather than an artefact of the screenshot.
+ */
 export async function screenshot(page, path, { fullPage = false } = {}) {
+  let previousScroll = null;
+  if (fullPage) {
+    previousScroll = await page.evaluate(() => {
+      const y = window.scrollY;
+      window.scrollTo(0, 0);
+      return y;
+    });
+    // Give sticky/fixed elements a frame to settle back to their resting position.
+    await new Promise((r) => setTimeout(r, 150));
+  }
+
   await page.screenshot({ path, fullPage });
+
+  if (previousScroll) {
+    await page.evaluate((y) => window.scrollTo(0, y), previousScroll).catch(() => {});
+  }
   return path;
 }
 

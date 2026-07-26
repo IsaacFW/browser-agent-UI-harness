@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Isaac Williams
 // deps: node:fs, node:path
 //
 // The run log. Everything an agent later claims about a site should be citable, so each
@@ -17,10 +19,10 @@ export const FILES = {
   navigations: 'navigations.jsonl',
 };
 
-/** Create a fresh run directory: runs/<iso-ish timestamp>-<label>. */
-export function createRunDir(root, label = 'run') {
+/** Create a fresh run directory: <runsRoot>/<iso-ish timestamp>-<label>. */
+export function createRunDir(runsRoot, label = 'run') {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
-  const dir = join(root, 'runs', `${stamp}-${sanitize(label)}`);
+  const dir = join(runsRoot, `${stamp}-${sanitize(label)}`);
   mkdirSync(join(dir, 'screenshots'), { recursive: true });
   return dir;
 }

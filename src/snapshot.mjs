@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Isaac Williams
 // deps: (browser-injected; no imports)
 //
 // Turning a live page into something an agent can reason about and act on. Two hard
@@ -153,6 +155,16 @@ const WALKER = function walk(maxNodes) {
         .slice(0, 25)
         .map((o) => o.textContent.replace(/\s+/g, ' ').trim());
     }
+    // Position within a table, so the formatter can put a row back together. Without this a
+    // table arrives as a flat run of cells and the reader has to count columns by hand.
+    if (el.tagName === 'TD' || el.tagName === 'TH') {
+      const table = el.closest('table');
+      const row = el.closest('tr');
+      if (table && row) {
+        const tables = Array.from(document.querySelectorAll('table'));
+        entry.cell = { table: tables.indexOf(table), row: row.rowIndex, col: el.cellIndex };
+      }
+    }
     out.push(entry);
   };
 
@@ -170,10 +182,27 @@ const WALKER = function walk(maxNodes) {
     return 0;
   });
 
+  // Is the page still resolving? Network quiet is not a sufficient signal — a data layer
+  // retrying with backoff goes quiet between attempts, so idle-detection calls it finished
+  // while a spinner is still on screen. The affordance itself is the reliable tell.
+  const busy = (() => {
+    if (document.querySelector('[aria-busy="true"],[role="progressbar"],progress')) return true;
+    // Deliberately exact-match: an element whose ENTIRE text is a loading label, so a page
+    // that merely contains the word "loading" in prose is not misreported.
+    for (const el of document.querySelectorAll('div,span,p,td,th,li,section,main,output')) {
+      const t = (el.textContent || '').trim();
+      if (t.length < 24 && /^(loading|loading[.…]{1,3}|please wait[.…]{0,3}|fetching[.…]{0,3})$/i.test(t)) {
+        return true;
+      }
+    }
+    return false;
+  })();
+
   return {
     url: location.href,
     title: document.title,
     truncated,
+    busy,
     nodes: out.map((n, i) => ({ ref: i + 1, ...n })),
   };
 };
@@ -186,9 +215,30 @@ export async function snapshot(page, { maxNodes = 300 } = {}) {
 /** Render a snapshot as the compact listing an agent reads. */
 export function formatSnapshot(snap, { showStructural = true } = {}) {
   const lines = [`# ${snap.title || '(untitled)'}`, `  ${snap.url}`, ''];
-  for (const n of snap.nodes) {
-    if (!showStructural && n.kind === 'structural') continue;
-    const bits = [`[${n.ref}]`.padStart(6), n.role.padEnd(10), n.name ? JSON.stringify(n.name) : '(no name)'];
+  const visible = showStructural ? snap.nodes : snap.nodes.filter((n) => n.kind !== 'structural');
+
+  for (let i = 0; i < visible.length; i += 1) {
+    const n = visible[i];
+
+    // Consecutive cells of one table row collapse into a single readable line.
+    if (n.cell) {
+      const group = [n];
+      while (
+        i + 1 < visible.length &&
+        visible[i + 1].cell &&
+        visible[i + 1].cell.table === n.cell.table &&
+        visible[i + 1].cell.row === n.cell.row
+      ) {
+        i += 1;
+        group.push(visible[i]);
+      }
+      const refs = group.length === 1 ? `[${group[0].ref}]` : `[${group[0].ref}-${group[group.length - 1].ref}]`;
+      const label = group[0].tag === 'th' ? 'row(hdr)' : 'row';
+      lines.push(`${refs.padStart(9)} ${label.padEnd(9)} ${group.map((c) => c.name || '—').join(' │ ')}`);
+      continue;
+    }
+
+    const bits = [`[${n.ref}]`.padStart(9), n.role.padEnd(10), n.name ? JSON.stringify(n.name) : '(no name)'];
     const extra = [];
     if (n.href) extra.push(`-> ${n.href}`);
     if (n.value !== undefined) extra.push(`value=${JSON.stringify(n.value)}`);
